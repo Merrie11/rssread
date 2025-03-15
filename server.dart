@@ -7,13 +7,23 @@ import 'package:dart_rss/dart_rss.dart';
 import 'package:html/parser.dart';
 
 // Functie om afbeeldingen uit HTML te halen
-String extractImageUrl(String htmlContent) {
-  var document = parse(htmlContent);
-  
-  // Zoek eerste <img> tag in description/content
-  var imgTag = document.querySelector('img');
-  if (imgTag != null && imgTag.attributes.containsKey('src')) {
-    return imgTag.attributes['src']!;
+String extractImageUrl(RssItem item) {
+  // Check media:thumbnail of enclosure
+  if (item.media?.thumbnails?.isNotEmpty ?? false) {
+    return item.media!.thumbnails!.first.url!;
+  }
+  if (item.enclosure?.url != null) {
+    return item.enclosure!.url!;
+  }
+
+  // Check description/content voor een <img>-tag
+  String? htmlContent = item.content?.value ?? item.description;
+  if (htmlContent != null) {
+    var document = parse(htmlContent);
+    var imgTag = document.querySelector('img');
+    if (imgTag != null && imgTag.attributes.containsKey('src')) {
+      return imgTag.attributes['src']!;
+    }
   }
 
   // Geen afbeelding gevonden? Retourneer een lege string
@@ -42,7 +52,7 @@ Future<Response> fetchRssFeed(Request request) async {
           "link": item.link ?? "",
           "published": item.pubDate ?? "Geen datum",
           "summary": item.description ?? "Geen samenvatting",
-          "image": extractImageUrl(item.content?.value ?? item.description ?? "") // Extract afbeelding
+          "image": extractImageUrl(item)
         });
       }
 
