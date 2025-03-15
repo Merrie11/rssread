@@ -6,9 +6,44 @@ import 'package:http/http.dart' as http;
 import 'package:dart_rss/dart_rss.dart';
 import 'package:html/parser.dart';
 
-// Functie om afbeeldingen uit HTML te halen
+// ✅ Functie om een RSS-feed te vinden als een gewone website wordt ingevoerd
+Future<String?> findRssFeed(String websiteUrl) async {
+  try {
+    if (!websiteUrl.startsWith("http")) {
+      websiteUrl = "https://$websiteUrl";
+    }
+
+    final response = await http.get(Uri.parse(websiteUrl));
+
+    if (response.statusCode == 200) {
+      var document = parse(response.body);
+      var links = document.getElementsByTagName('link');
+
+      for (var link in links) {
+        var rel = link.attributes['rel'] ?? "";
+        var type = link.attributes['type'] ?? "";
+
+        if (rel.contains("alternate") && type.contains("rss")) {
+          String? feedUrl = link.attributes['href'];
+          
+          // Als de feed een relatieve URL is, maak er een absolute URL van
+          if (feedUrl != null && !feedUrl.startsWith("http")) {
+            Uri baseUri = Uri.parse(websiteUrl);
+            feedUrl = Uri.parse(baseUri.origin + feedUrl).toString();
+          }
+
+          return feedUrl;
+        }
+      }
+    }
+  } catch (e) {
+    print("❌ Fout bij het vinden van RSS-feed: $e");
+  }
+  return null;
+}
+
+// ✅ Functie om afbeeldingen uit HTML te halen
 String extractImageUrl(RssItem item) {
-  // Check media:thumbnail of enclosure
   if (item.media?.thumbnails?.isNotEmpty ?? false) {
     return item.media!.thumbnails!.first.url!;
   }
@@ -16,7 +51,6 @@ String extractImageUrl(RssItem item) {
     return item.enclosure!.url!;
   }
 
-  // Check description/content voor een <img>-tag
   String? htmlContent = item.content?.value ?? item.description;
   if (htmlContent != null) {
     var document = parse(htmlContent);
@@ -25,18 +59,29 @@ String extractImageUrl(RssItem item) {
       return imgTag.attributes['src']!;
     }
   }
-
-  // Geen afbeelding gevonden? Retourneer een lege string
   return "";
 }
 
-// Haal RSS-feed op en converteer naar JSON
+// ✅ Haal RSS-feed op en converteer naar JSON
 Future<Response> fetchRssFeed(Request request) async {
   final params = request.url.queryParameters;
-  final feedUrl = params['url'];
+  String? feedUrl = params['url'];
 
   if (feedUrl == null) {
-    return Response.badRequest(body: jsonEncode({"error": "Geen RSS URL opgegeven"}));
+    return Response.badRequest(body: jsonEncode({"error": "Geen URL opgegeven"}));
+  }
+
+  // 🚀 Controleer of het een website is en zoek automatisch een RSS-feed
+  if (!feedUrl.endsWith(".xml") && !feedUrl.contains("rss")) {
+    print("🔍 Probeer RSS-feed te vinden voor $feedUrl...");
+    String? detectedFeed = await findRssFeed(feedUrl);
+    
+    if (detectedFeed != null) {
+      print("✅ RSS-feed gevonden: $detectedFeed");
+      feedUrl = detectedFeed;
+    } else {
+      return Response.badRequest(body: jsonEncode({"error": "Geen RSS-feed gevonden voor deze website"}));
+    }
   }
 
   try {
@@ -65,6 +110,7 @@ Future<Response> fetchRssFeed(Request request) async {
   }
 }
 
+// ✅ Start de server
 void main() async {
   final router = Router();
   router.get('/rss', fetchRssFeed);
@@ -74,3 +120,4 @@ void main() async {
   final server = await io.serve(handler, '0.0.0.0', 8080);
   print('🚀 Server draait op http://${server.address.host}:${server.port}');
 }
+
