@@ -2,7 +2,7 @@ name: rss_api
 dependencies:
   shelf: ^1.4.0
   shelf_router: ^1.1.3
-  http: ^0.13.5
+  http: ^1.1.2
   dart_rss: ^3.0.3
   html: ^0.15.0
 environment:
