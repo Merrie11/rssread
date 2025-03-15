@@ -38,23 +38,26 @@ Future<String?> findRssFeed(String websiteUrl) async {
       }
 
       // 🔥 Extra check: Sommige websites zetten feeds in hun robots.txt
-      var robotsUrl = Uri.parse("$websiteUrl/robots.txt");
-      var robotsResponse = await http.get(robotsUrl);
-      if (robotsResponse.statusCode == 200) {
-        var robotsText = robotsResponse.body;
-        RegExp regex = RegExp(r"(https?:\/\/[^\s]+\.xml)", caseSensitive: false);
-        var matches = regex.allMatches(robotsText);
+var robotsUrl = Uri.parse("$websiteUrl/robots.txt");
+var robotsResponse = await http.get(robotsUrl);
 
-        for (var match in matches) {
-          print("✅ RSS-feed gevonden in robots.txt: ${match.group(0)}");
-          return match.group(0);
-        }
-      }
+if (robotsResponse.statusCode == 200) {
+  var robotsText = robotsResponse.body;
+  RegExp regex = RegExp(r"(https?:\/\/[^\s]+\.xml)", caseSensitive: false);
+  var matches = regex.allMatches(robotsText);
+
+  for (var match in matches) {
+    String possibleFeed = match.group(0)!;
+
+    // 🛑 NIEUWE FIX: Check of het een ECHTE RSS-feed is!
+    final testResponse = await http.get(Uri.parse(possibleFeed));
+    if (testResponse.statusCode == 200 && testResponse.body.contains("<rss")) {
+      print("✅ RSS-feed gevonden in robots.txt: $possibleFeed");
+      return possibleFeed;
+    } else {
+      print("❌ Geen geldige RSS-feed gevonden in robots.txt: $possibleFeed");
     }
-  } catch (e) {
-    print("❌ Fout bij het vinden van RSS-feed: $e");
   }
-  return null;
 }
 
 // ✅ Functie om afbeeldingen uit HTML te halen
