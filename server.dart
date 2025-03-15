@@ -42,7 +42,7 @@ Future<Response> fetchRssFeed(Request request) async {
           "link": item.link ?? "",
           "published": item.pubDate ?? "Geen datum",
           "summary": item.description ?? "Geen samenvatting",
-          "image": extractImageUrl(item.description ?? "") // Extract afbeelding
+          "image": extractImageUrl(item.content?.value ?? item.description ?? "") // Extract afbeelding
         });
       }
 
