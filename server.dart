@@ -9,8 +9,15 @@ import 'package:html/parser.dart';
 // Functie om afbeeldingen uit HTML te halen
 String extractImageUrl(String htmlContent) {
   var document = parse(htmlContent);
+  
+  // Zoek eerste <img> tag in description/content
   var imgTag = document.querySelector('img');
-  return imgTag?.attributes['src'] ?? "";
+  if (imgTag != null && imgTag.attributes.containsKey('src')) {
+    return imgTag.attributes['src']!;
+  }
+
+  // Geen afbeelding gevonden? Retourneer een lege string
+  return "";
 }
 
 // Haal RSS-feed op en converteer naar JSON
