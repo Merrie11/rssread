@@ -25,14 +25,29 @@ Future<String?> findRssFeed(String websiteUrl) async {
 
         if (rel.contains("alternate") && type.contains("rss")) {
           String? feedUrl = link.attributes['href'];
-          
-          // Als de feed een relatieve URL is, maak er een absolute URL van
+
+          // Fix voor relatieve URL's (zoals "/rss.xml" -> "https://nos.nl/rss.xml")
           if (feedUrl != null && !feedUrl.startsWith("http")) {
             Uri baseUri = Uri.parse(websiteUrl);
             feedUrl = Uri.parse(baseUri.origin + feedUrl).toString();
           }
 
+          print("✅ RSS-feed gevonden: $feedUrl"); // Debug message
           return feedUrl;
+        }
+      }
+
+      // 🔥 Extra check: Sommige websites zetten feeds in hun robots.txt
+      var robotsUrl = Uri.parse("$websiteUrl/robots.txt");
+      var robotsResponse = await http.get(robotsUrl);
+      if (robotsResponse.statusCode == 200) {
+        var robotsText = robotsResponse.body;
+        RegExp regex = RegExp(r"(https?:\/\/[^\s]+\.xml)", caseSensitive: false);
+        var matches = regex.allMatches(robotsText);
+
+        for (var match in matches) {
+          print("✅ RSS-feed gevonden in robots.txt: ${match.group(0)}");
+          return match.group(0);
         }
       }
     }
