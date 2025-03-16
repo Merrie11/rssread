@@ -85,18 +85,13 @@ String extractImageUrl(RssItem item) {
   String imageUrl = images.isNotEmpty ? images.first : "";
 
   // **🚀 Check of het echt een geldige URL is**
-  if (!imageUrl.startsWith("http")) {
-    return "https://via.placeholder.com/300x200?text=No+Image";
+  if (imageUrl.isEmpty || !imageUrl.startsWith("http")) {
+    return "https://via.placeholder.com/300x200?text=No+Image"; // Standaardafbeelding
   }
 
   return imageUrl;
 }
 
-  if (!imageUrl.startsWith("http")) {
-    return "https://via.placeholder.com/300x200?text=No+Image";
-  }
-  return imageUrl;
-}
 
 // ✅ Haal RSS-feed op en converteer naar JSON
 Future<Response> fetchRssFeed(Request request) async {
