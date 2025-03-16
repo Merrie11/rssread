@@ -20,14 +20,13 @@ Map<String, List<String>> knownRssFeeds = {
   "github.com": ["https://github.com/trending/rss"],
 };
 
-// ✅ Zoek automatisch een RSS-feed als een gebruiker alleen een domeinnaam invult
+// ✅ Zoek een RSS-feed als een gebruiker alleen een domeinnaam invult
 Future<String?> findRssFeed(String websiteUrl) async {
   try {
     if (!websiteUrl.startsWith("http")) {
       websiteUrl = "https://$websiteUrl";
     }
 
-    // Check of de site al in de database staat
     Uri parsedUrl = Uri.parse(websiteUrl);
     String? knownFeed = knownRssFeeds[parsedUrl.host]?.first;
     if (knownFeed != null) {
@@ -35,7 +34,6 @@ Future<String?> findRssFeed(String websiteUrl) async {
       return knownFeed;
     }
 
-    // Zoek een RSS-feed in de HTML <link> tags
     final response = await http.get(Uri.parse(websiteUrl));
     if (response.statusCode == 200) {
       var document = parse(response.body);
@@ -48,7 +46,6 @@ Future<String?> findRssFeed(String websiteUrl) async {
         if (rel.contains("alternate") && type.contains("rss")) {
           String? feedUrl = link.attributes['href'];
 
-          // Fix relatieve URL's
           if (feedUrl != null && !feedUrl.startsWith("http")) {
             Uri baseUri = Uri.parse(websiteUrl);
             feedUrl = Uri.parse(baseUri.origin + feedUrl).toString();
@@ -66,26 +63,36 @@ Future<String?> findRssFeed(String websiteUrl) async {
   return null;
 }
 
-// ✅ Haal een afbeelding op uit de RSS-feed
-String extractImageUrl(RssItem item) {
-  if (item.media?.thumbnails?.isNotEmpty ?? false) {
-    return item.media!.thumbnails!.first.url!;
-  }
-  if (item.enclosure?.url != null) {
-    return item.enclosure!.url!;
-  }
+// ✅ Verwijder HTML uit samenvatting
+String cleanSummary(String? html) {
+  if (html == null) return "Geen samenvatting";
+  var document = parse(html);
+  return document.body?.text.trim() ?? "Geen samenvatting";
+}
 
-  // Zoek afbeelding in description/content
-  String? htmlContent = item.content?.value ?? item.description;
-  if (htmlContent != null) {
-    var document = parse(htmlContent);
-    var imgTag = document.querySelector('img');
-    if (imgTag != null && imgTag.attributes.containsKey('src')) {
-      return imgTag.attributes['src']!;
+// ✅ Haal een schone afbeelding URL uit de RSS-feed
+String extractImageUrl(RssItem item) {
+  String imageUrl = "";
+
+  if (item.media?.thumbnails?.isNotEmpty ?? false) {
+    imageUrl = item.media!.thumbnails!.first.url!;
+  } else if (item.enclosure?.url != null) {
+    imageUrl = item.enclosure!.url!;
+  } else {
+    String? htmlContent = item.content?.value ?? item.description;
+    if (htmlContent != null) {
+      var document = parse(htmlContent);
+      var imgTag = document.querySelector('img');
+      if (imgTag != null && imgTag.attributes.containsKey('src')) {
+        imageUrl = imgTag.attributes['src']!;
+      }
     }
   }
 
-  return "https://via.placeholder.com/300x200?text=No+Image";
+  if (!imageUrl.startsWith("http")) {
+    return "https://via.placeholder.com/300x200?text=No+Image";
+  }
+  return imageUrl;
 }
 
 // ✅ Haal RSS-feed op en converteer naar JSON
@@ -97,7 +104,6 @@ Future<Response> fetchRssFeed(Request request) async {
     return Response.badRequest(body: jsonEncode({"error": "Geen URL opgegeven"}));
   }
 
-  // 🚀 Zoek automatisch een RSS-feed als de gebruiker alleen een website intypt
   if (!feedUrl.endsWith(".xml") && !feedUrl.contains("rss")) {
     print("🔍 Probeer RSS-feed te vinden voor $feedUrl...");
     feedUrl = await findRssFeed(feedUrl);
@@ -118,7 +124,7 @@ Future<Response> fetchRssFeed(Request request) async {
           "title": item.title ?? "Geen titel",
           "link": item.link ?? "",
           "published": item.pubDate ?? "Geen datum",
-          "summary": item.description ?? "Geen samenvatting",
+          "summary": cleanSummary(item.description),
           "image": extractImageUrl(item),
         });
       }
@@ -151,4 +157,3 @@ void main() async {
   final server = await io.serve(handler, '0.0.0.0', 8080);
   print('🚀 Server draait op http://${server.address.host}:${server.port}');
 }
-
