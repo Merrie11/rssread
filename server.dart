@@ -121,11 +121,11 @@ Future<Response> fetchRssFeed(Request request) async {
 
       for (var item in feed.items.take(5)) {
         articles.add({
-          "title": item.title ?? "Geen titel",
-          "link": item.link ?? "",
-          "published": item.pubDate ?? "Geen datum",
-          "summary": cleanSummary(item.description),
-          "image": extractImageUrl(item),
+          "title": item.title?.toString() ?? "Geen titel",
+          "link": item.link?.toString() ?? "",
+          "published": item.pubDate?.toString() ?? "Geen datum",
+          "summary": cleanSummary(item.description).toString(),
+          "image": extractImageUrl(item).toString(),
         });
       }
 
