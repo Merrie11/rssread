@@ -72,22 +72,25 @@ String cleanSummary(String? html) {
 
 // ✅ Haal een schone afbeelding URL uit de RSS-feed
 String extractImageUrl(RssItem item) {
-  String imageUrl = "";
+  List<String> images = [];
 
   if (item.media?.thumbnails?.isNotEmpty ?? false) {
-    imageUrl = item.media!.thumbnails!.first.url!;
-  } else if (item.enclosure?.url != null) {
-    imageUrl = item.enclosure!.url!;
-  } else {
-    String? htmlContent = item.content?.value ?? item.description;
-    if (htmlContent != null) {
-      var document = parse(htmlContent);
-      var imgTag = document.querySelector('img');
-      if (imgTag != null && imgTag.attributes.containsKey('src')) {
-        imageUrl = imgTag.attributes['src']!;
-      }
-    }
+    images.addAll(item.media!.thumbnails!.map((thumb) => thumb.url!));
   }
+  if (item.enclosure?.url != null) {
+    images.add(item.enclosure!.url!);
+  }
+
+  // **🔥 Kies alleen de eerste afbeelding uit de lijst**
+  String imageUrl = images.isNotEmpty ? images.first : "";
+
+  // **🚀 Check of het echt een geldige URL is**
+  if (!imageUrl.startsWith("http")) {
+    return "https://via.placeholder.com/300x200?text=No+Image";
+  }
+
+  return imageUrl;
+}
 
   if (!imageUrl.startsWith("http")) {
     return "https://via.placeholder.com/300x200?text=No+Image";
